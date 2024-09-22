@@ -2,6 +2,17 @@
 key
 key.pub
 
+# Virtual Environment
+venv/
 
+# Python Bytecode
+__pycache__/
+*.pyc
+
+# macOS Specific Files
+.DS_Store
+
+# IDE Specific Files
+.vscode/
 
 

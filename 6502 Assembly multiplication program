@@ -1,3 +1,4 @@
+ls
 ; 6502 Assembly Multiplication Program (CMPEN 472)
 .org $8000        ; Starting address of the program in memory
 
