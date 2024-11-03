@@ -1,0 +1,94 @@
+# Lab 2: Statistical Analysis and Regression
+
+**Jeremiah Ddumba**  
+**Statistics 200**  
+**November 5, 2023**  
+
+## Introduction
+
+In **Lab 2: Statistical Analysis and Regression**, the objective was to perform comprehensive statistical analyses on the Iris dataset to understand the central tendencies, variability, and relationships between different flower measurements. This lab involved calculating measures of central tendency and spread, creating visualizations such as boxplots and scatterplots, and conducting correlation and regression analyses to explore relationships between variables. These analyses provide valuable insights into the characteristics of different Iris species and the interdependencies between their physical attributes.
+
+## Methodology
+
+### Tools and Software
+- **R**: A programming language for statistical computing and graphics
+- **RStudio**: An integrated development environment (IDE) for R
+- **GitHub**: Platform for version control and collaboration
+
+### Steps Taken
+1. **Data Loading**: Imported the Iris dataset from the `iris2.xls` file using the `readxl` package.
+2. **Measures of Central Tendency**: Calculated mean values for Sepal Length, Sepal Width, Petal Length, and Petal Width using `mean()`. Compared these means across different Iris species.
+3. **Measures of Spread**: Calculated standard deviations using `sd()` and computed the Coefficient of Variation (CV) for each variable.
+4. **5-Number Summary and Boxplots**: Generated summaries using `summary()` and created boxplots for each variable by species with `ggplot2`.
+5. **Correlation Analysis**: Calculated Pearson correlation coefficients among selected pairs of variables and created scatterplots.
+6. **Regression Analysis**: Selected variable pairs and derived least squares regression equations using `lm()`. Plotted regression lines on scatterplots using `abline()`.
+
+## Analysis and Results
+
+### Section 1: Measures of Central Tendency
+- **Overall Means**:
+  - Sepal Length: 5.84 cm
+  - Sepal Width: 3.06 cm
+  - Petal Length: 3.76 cm
+  - Petal Width: 1.20 cm
+
+- **Means by Species**:
+  | Species    | Mean Sepal Length | Mean Sepal Width | Mean Petal Length | Mean Petal Width |
+  |------------|-------------------|------------------|-------------------|------------------|
+  | Setosa     | 5.01              | 3.43            | 1.46             | 0.25            |
+  | Versicolor | 5.94              | 2.77            | 4.26             | 1.33            |
+  | Virginica  | 6.59              | 2.97            | 5.55             | 2.03            |
+
+### Section 2: Measures of Spread
+- **Standard Deviations by Species**:
+  | Species    | SD Sepal Length | SD Sepal Width | SD Petal Length | SD Petal Width |
+  |------------|-----------------|----------------|-----------------|----------------|
+  | Setosa     | 0.35            | 0.38           | 0.17            | 0.11           |
+  | Versicolor | 0.52            | 0.31           | 0.47            | 0.20           |
+  | Virginica  | 0.64            | 0.32           | 0.55            | 0.27           |
+
+- **Coefficient of Variation (CV)**:
+  - Sepal Length: 14.2%
+  - Sepal Width: 14.3%
+  - Petal Length: 46.3%
+  - Petal Width: 63.4%
+
+### Section 3: 5-Number Summary and Boxplots
+- **Overall 5-Number Summary**:
+  | Variable      | Min | Q1  | Median | Mean | Q3  | Max |
+  |---------------|-----|-----|--------|------|-----|-----|
+  | Sepal Length  | 4.3 | 5.1 | 5.8    | 5.84 | 6.4 | 7.9 |
+  | Sepal Width   | 2.0 | 2.8 | 3.0    | 3.06 | 3.3 | 4.4 |
+  | Petal Length  | 1.0 | 3.1 | 4.35   | 3.76 | 5.1 | 6.9 |
+  | Petal Width   | 0.1 | 1.3 | 1.3    | 1.20 | 1.8 | 2.5 |
+
+**Boxplots**:
+- Each boxplot highlights the range, median, and variability for Sepal and Petal measurements across species.
+
+### Section 4: Correlation and Regression Analysis
+
+#### Correlation Analysis
+- **Overall Correlations**:
+  | Variable Pair            | Correlation Coefficient (r) |
+  |--------------------------|-----------------------------|
+  | Sepal Length & Sepal Width | -0.117                    |
+  | Petal Length & Petal Width | 0.872                     |
+  | Sepal Length & Petal Length | 0.871                   |
+
+- **Species-Specific Correlations** indicate stronger relationships within certain species, especially for Petal Length & Width.
+
+#### Regression Analysis
+- **Regression Equations**:
+  - **Sepal Width ~ Sepal Length**: \( \text{Sepal Width} = 6.233 - 0.594 \times \text{Sepal Length} \)
+  - **Petal Width ~ Petal Length**: \( \text{Petal Width} = -0.107 + 0.964 \times \text{Petal Length} \)
+  - **Petal Length ~ Sepal Length**: \( \text{Petal Length} = -0.556 + 1.180 \times \text{Sepal Length} \)
+
+Species-specific regression models further reveal how relationships differ across Iris types.
+
+## Conclusion
+
+Lab 2 successfully met its objectives, providing insights into Iris flower measurements through statistical and regression analysis. Findings highlighted significant differences in measurement means, variability, and relationships across species. This lab emphasized the application of statistical methods to biological data, illustrating variability, correlation, and predictive modeling.
+
+---
+
+Feel free to reach out with any questions!

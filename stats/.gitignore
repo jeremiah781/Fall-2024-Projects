@@ -1,0 +1,21 @@
+# Ignore SSH keys
+*.pem
+*.key
+*.ssh
+
+# Ignore system files
+.DS_Store
+
+# Ignore virtual environments
+venv/
+env/
+
+# Ignore R environment files
+.Rhistory
+.RData
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
