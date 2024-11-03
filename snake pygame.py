@@ -19,7 +19,7 @@ dis_height = 400
 
 # Set up display
 dis = pygame.display.set_mode((dis_width, dis_height))
-pygame.display.set_caption('Snake Game by Jeremiah Ddumba CS 131')
+pygame.display.set_caption('Snake Game by Jeremiah Ddumba')
 
 # Clock object to control game speed
 clock = pygame.time.Clock()
