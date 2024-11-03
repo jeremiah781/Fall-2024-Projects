@@ -9,5 +9,5 @@ Welcome to my STAT 200 projects repository! This repository contains **Lab 1** a
 
 ## Overview
 
-Each lab is organized into its own folder with corresponding scripts, data, reports, graphs, and screenshots.
+Each lab is organized into its own folder with corresponding scripts, and data
 
