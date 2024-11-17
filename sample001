@@ -1,0 +1,58 @@
+Welcome to the Hoagie Shop!
+
+Hoagie Menu:
+1. Italian Hoagie - $6.00
+2. Cheese Steak Hoagie - $7.50
+3. Veggie Hoagie - $5.50
+4. Chicken Hoagie - $6.50
+5. Exit and Complete Order
+Please select a hoagie (1-5): 2
+You selected Cheese Steak Hoagie.
+
+Toppings Menu:
+1. Lettuce - $0.50
+2. Tomato - $0.50
+3. Onion - $0.25
+4. Pickles - $0.25
+5. Extra Cheese - $1.00
+6. No more toppings
+Please select a topping (1-6): 1
+Added Lettuce.
+Current Order Total: $8.00
+
+Toppings Menu:
+1. Lettuce - $0.50
+2. Tomato - $0.50
+3. Onion - $0.25
+4. Pickles - $0.25
+5. Extra Cheese - $1.00
+6. No more toppings
+Please select a topping (1-6): 5
+Added Extra Cheese.
+Current Order Total: $9.00
+
+Toppings Menu:
+1. Lettuce - $0.50
+2. Tomato - $0.50
+3. Onion - $0.25
+4. Pickles - $0.25
+5. Extra Cheese - $1.00
+6. No more toppings
+Please select a topping (1-6): 6
+
+Hoagie Menu:
+1. Italian Hoagie - $6.00
+2. Cheese Steak Hoagie - $7.50
+3. Veggie Hoagie - $5.50
+4. Chicken Hoagie - $6.50
+5. Exit and Complete Order
+Please select a hoagie (1-5): 5
+
+Order Summary:
+Subtotal: $9.00
+Sales Tax (6%): $0.54
+Total with Tax: $9.54
+Enter tip amount (or press Enter to skip): $1.00
+Tip: $1.00
+Total Amount Due: $10.54
+Thank you for your order! Have a great day!
