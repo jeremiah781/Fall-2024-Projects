@@ -1,3 +1,7 @@
+"""
+demo for IEEE make a snake game workshop 
+10/9/2024
+"""
 import pygame
 import time
 import random
