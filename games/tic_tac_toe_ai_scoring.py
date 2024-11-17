@@ -18,7 +18,7 @@ TIE_SOUND = pygame.mixer.Sound('tie.wav')         # Sound for a tie
 Program Name: Tic-Tac-Toe with AI and Enhanced Features
 Author: [Jeremiah Ddumba]
 Email: [jsd5521@psu.edu]
-Course: CMPSC 131
+Extra Credit 
 Assignment: Final Project - Tic-Tac-Toe with Difficulty Levels and Enhancements
 Due Date: [Insert Date]
 File Name: tic_tac_toe_gui.py

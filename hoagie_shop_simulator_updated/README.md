@@ -5,8 +5,9 @@ This Python program simulates a hoagie shop where customers can place orders, se
 ## Sample Runs
 
 ### Sample Run 1:
-*(Include the first sample run here)*
+
+_(Include the first sample run here)_
 
 ### Sample Run 2:
-*(Include the second sample run here)*
 
+_(Include the second sample run here)_
