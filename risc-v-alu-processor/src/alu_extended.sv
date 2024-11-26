@@ -3,7 +3,7 @@
 // This module represents an Arithmetic Logic Unit (ALU) for a 32-bit RISC-V processor
 // It performs various arithmetic and logic operations based on the provided operation code
 // started on 10/18/2024 and completed 10/29/2024
-//TODO:
+//TODO: Further enhance the extended alu_extended
 //FIXME:
 
 module ALU (

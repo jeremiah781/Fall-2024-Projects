@@ -1,13 +1,8 @@
-# Hoagie Shop Simulator
+A Python program that simulates a hoagie shop where customers can order hoagies, customize with toppings, and complete purchases with tax and optional tips
 
-This Python program simulates a hoagie shop where customers can place orders, select toppings, view their order totals, and complete their purchase with tax and optional tips.
-
-## Sample Runs
-
-### Sample Run 1:
-
-_(Include the first sample run here)_
-
-### Sample Run 2:
-
-_(Include the second sample run here)_
+Features
+Interactive Ordering: Choose hoagies, add toppings, and view running totals
+Inventory Management: Tracks stock levels, prevents out-of-stock orders, and updates dynamically
+Data Persistence: Logs orders and inventory changes using SQLite
+Sales Reporting: Generates reports with total sales and most popular items
+Order Summaries: Displays subtotal, tax, tip, and total amount due
