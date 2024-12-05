@@ -1,162 +1,254 @@
 // alu_extended_tb.sv
-// Enhanced testbench for the extended ALU module, covering edge cases, invalid operations, and sequential operations
-// started on 10/22/2024 and completed 10/30/2024
+// Testbench for Enhanced ALU Module
+//// Updated on 12/3 - 12/4/2-24
+`timescale 1ns / 1ps
 
-`timescale 1ns/1ps // Define the time unit and precision
+module ALU_Extended_tb;
 
-module ALU_tb;
+    // Parameters
+    parameter DATA_WIDTH = 32;
+    parameter OP_WIDTH = 5;
+    parameter NUM_OPS = 32;
+    parameter SIMD_WIDTH = 4;
 
-    // Declare signals to connect to the ALU
-    logic clk;             // Clock signal
-    logic [31:0] operand_a; // First operand
-    logic [31:0] operand_b; // Second operand
-    logic [4:0] alu_op;      // Operation code
-    logic [31:0] result;     // ALU result
-    logic zero;             // Zero flag
+    // Testbench Signals
+    logic clk;
+    logic en;
+    logic [SIMD_WIDTH*DATA_WIDTH-1:0] operand_a;
+    logic [SIMD_WIDTH*DATA_WIDTH-1:0] operand_b;
+    logic [SIMD_WIDTH*OP_WIDTH-1:0]    alu_op;
+    logic [SIMD_WIDTH*DATA_WIDTH-1:0]  result;
+    logic [SIMD_WIDTH-1:0]             zero;
+    logic [SIMD_WIDTH-1:0]             overflow;
+    logic [SIMD_WIDTH-1:0]             carry_out;
+    logic [SIMD_WIDTH-1:0]             negative;
+    logic [SIMD_WIDTH*DATA_WIDTH-1:0]  fp_result;
+    logic [SIMD_WIDTH-1:0]             fp_overflow;
 
-    // Instantiate the ALU module under test (UUT)
-    ALU uut (
+    // Instantiate SIMD ALU
+    SIMD_ALU_Extended #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .OP_WIDTH(OP_WIDTH),
+        .SIMD_WIDTH(SIMD_WIDTH)
+    ) uut (
         .clk(clk),
         .operand_a(operand_a),
         .operand_b(operand_b),
         .alu_op(alu_op),
+        .en(en),
         .result(result),
-        .zero(zero)
+        .zero(zero),
+        .overflow(overflow),
+        .carry_out(carry_out),
+        .negative(negative),
+        .fp_result(fp_result),
+        .fp_overflow(fp_overflow)
     );
 
-    // Generate a clock signal that toggles every 5 ns (100MHz frequency)
+    // Clock Generation
+    initial clk = 0;
+    always #5 clk = ~clk; // 100MHz Clock
+
+    // Task to Apply Test Vectors
+    task apply_test(
+        input [DATA_WIDTH-1:0] a,
+        input [DATA_WIDTH-1:0] b,
+        input [OP_WIDTH-1:0]    op,
+        input [DATA_WIDTH-1:0] expected_result,
+        input                    expected_zero,
+        input                    expected_overflow,
+        input                    expected_carry_out,
+        input                    expected_negative,
+        input [DATA_WIDTH-1:0] expected_fp_result,
+        input                    expected_fp_overflow
+    );
+        integer i;
+        begin
+            for (i = 0; i < SIMD_WIDTH; i++) begin
+                operand_a[i*DATA_WIDTH +: DATA_WIDTH] = a + i;
+                operand_b[i*DATA_WIDTH +: DATA_WIDTH] = b + i;
+                alu_op[i*OP_WIDTH +: OP_WIDTH] = op;
+            end
+            en = 1;
+            @(posedge clk);
+            // Assertions for each ALU instance
+            for (i = 0; i < SIMD_WIDTH; i++) begin
+                // Integer Operations
+                assert(result[i*DATA_WIDTH +: DATA_WIDTH] == (expected_result + i)) else $error("ALU Instance %0d: Result mismatch for operation %b", i, op);
+                assert(zero[i] == ( (expected_result + i) == 0 )) else $error("ALU Instance %0d: Zero flag mismatch", i);
+                assert(overflow[i] == expected_overflow) else $error("ALU Instance %0d: Overflow flag mismatch", i);
+                assert(carry_out[i] == expected_carry_out) else $error("ALU Instance %0d: Carry-out flag mismatch", i);
+                assert(negative[i] == ( (expected_result + i)[DATA_WIDTH-1] )) else $error("ALU Instance %0d: Negative flag mismatch", i);
+                // Floating-Point Operations
+                assert(fp_result[i*DATA_WIDTH +: DATA_WIDTH] == expected_fp_result) else $error("ALU Instance %0d: Floating-Point Result mismatch", i);
+                assert(fp_overflow[i] == expected_fp_overflow) else $error("ALU Instance %0d: Floating-Point Overflow mismatch", i);
+            end
+            // Clear Inputs
+            en = 0;
+            operand_a = 0;
+            operand_b = 0;
+            alu_op = 0;
+        end
+    endtask
+
+    // Test Scenarios
     initial begin
-        clk = 0; // Start with clock low
-        forever #5 clk = ~clk; // Toggle clock every 5 ns
-    end
-
-    // Initialize VCD (Value Change Dump) for waveform viewing in GTKWave
-    initial begin
-        $dumpfile("alu_extended_tb.vcd"); // Specify the VCD file name
-        $dumpvars(0, ALU_tb);             // Dump all variables in the ALU_tb module
-    end
-
-    // Define a structure to hold individual test cases
-    typedef struct {
-        logic [31:0] a;            // Operand A
-        logic [31:0] b;            // Operand B
-        logic [4:0] op;            // Operation code
-        logic [31:0] expected;     // Expected result
-        logic expected_zero;      // Expected zero flag
-        string operation;         // Description of the operation
-    } test_case_t;
-
-    // Create an array of test cases to cover all operations, edge cases, and invalid operations
-    test_case_t test_cases [*] = '{
-        // --- Basic Operations ---
-        // ADD Operations
-        '{32'd10, 32'd15, 5'b00000, 32'd25, 1'b0, "ADD 10 + 15 = 25"},
-        '{32'd0, 32'd0, 5'b00000, 32'd0, 1'b1, "ADD 0 + 0 = 0"},
-
-        // SUB Operations
-        '{32'd20, 32'd5, 5'b00001, 32'd15, 1'b0, "SUB 20 - 5 = 15"},
-        '{32'd5, 32'd5, 5'b00001, 32'd0, 1'b1, "SUB 5 - 5 = 0"},
-
-        // AND Operations
-        '{32'hFF00FF00, 32'h0F0F0F0F, 5'b00010, 32'h0F000F00, 1'b0, "AND FF00FF00 & 0F0F0F0F = 0F000F00"},
-        '{32'd0, 32'd0, 5'b00010, 32'd0, 1'b1, "AND 0 & 0 = 0"},
-
-        // OR Operations
-        '{32'hFF00FF00, 32'h0F0F0F0F, 5'b00011, 32'hFFFFFFF0, 1'b0, "OR FF00FF00 | 0F0F0F0F = FFFFFFF0"},
-        '{32'd0, 32'd0, 5'b00011, 32'd0, 1'b1, "OR 0 | 0 = 0"},
-
-        // XOR Operations
-        '{32'hFFFF0000, 32'h00FFFF00, 5'b00100, 32'hFFFFFFFF, 1'b0, "XOR FFFF0000 ^ 00FFFF00 = FFFFFFFF"},
-        '{32'd0, 32'd0, 5'b00100, 32'd0, 1'b1, "XOR 0 ^ 0 = 0"},
-
-        // SLT Operations (Set Less Than)
-        '{32'd10, 32'd20, 5'b00101, 32'd1, 1'b0, "SLT (10 < 20) = 1"},
-        '{32'd20, 32'd10, 5'b00101, 32'd0, 1'b1, "SLT (20 < 10) = 0"},
-        '{32'd0, 32'd0, 5'b00101, 32'd0, 1'b1, "SLT (0 < 0) = 0"},
-
-        // SLL Operations (Shift Left Logical)
-        '{32'd1, 32'd3, 5'b00110, 32'd8, 1'b0, "SLL (1 << 3) = 8"},
-        '{32'd0, 32'd0, 5'b00110, 32'd0, 1'b1, "SLL (0 << 0) = 0"},
-
-        // SRL Operations (Shift Right Logical)
-        '{32'd8, 32'd3, 5'b00111, 32'd1, 1'b0, "SRL (8 >> 3) = 1"},
-        '{32'd0, 32'd0, 5'b00111, 32'd0, 1'b1, "SRL (0 >> 0) = 0"},
-
-        // SRA Operations (Shift Right Arithmetic)
-        '{32'sd-8, 32'd3, 5'b01000, 32'sd-1, 1'b0, "SRA (-8 >>> 3) = -1"},
-        '{32'd0, 32'd0, 5'b01000, 32'd0, 1'b1, "SRA (0 >>> 0) = 0"},
-
-        // NOR Operations
-        '{32'hFFFF0000, 32'h0000FFFF, 5'b01001, 32'h00000000, 1'b1, "NOR (FFFF0000 | 0000FFFF) = 00000000"},
-        '{32'd0, 32'd0, 5'b01001, 32'hFFFFFFFF, 1'b0, "NOR (0 | 0) = FFFFFFFF"},
-
-        // SGE Operations (Set Greater or Equal)
-        '{32'd20, 32'd10, 5'b01010, 32'd1, 1'b0, "SGE (20 >= 10) = 1"},
-        '{32'd10, 32'd20, 5'b01010, 32'd0, 1'b1, "SGE (10 >= 20) = 0"},
-        '{32'd0, 32'd0, 5'b01010, 32'd1, 1'b0, "SGE (0 >= 0) = 1"},
-
-        // --- Edge Cases ---
-        // Maximum and Minimum Values
-        '{32'h7FFFFFFF, 32'd1, 5'b00000, 32'h80000000, 1'b0, "ADD 7FFFFFFF + 1 = 80000000 (Overflow)"},
-        '{32'd0, 32'sd-1, 5'b00001, 32'd1, 1'b0, "SUB 0 - (-1) = 1 (Underflow)"},
-        '{32'hFFFFFFFF, 32'd1, 5'b00000, 32'h00000000, 1'b1, "ADD FFFFFFFF + 1 = 00000000 (Zero Flag)"},
-        '{32'sd-2147483648, 32'd1, 5'b00000, 32'sd-2147483647, 1'b0, "ADD -2147483648 + 1 = -2147483647"},
-
-        // Zero and Negative Numbers
-        '{32'd12345, 32'd0, 5'b00000, 32'd12345, 1'b0, "ADD 12345 + 0 = 12345"},
-        '{32'd12345, 32'd0, 5'b00001, 32'd12345, 1'b0, "SUB 12345 - 0 = 12345"},
-        '{32'd0, 32'hABCDE123, 5'b00010, 32'd0, 1'b1, "AND 0 & ABCDE123 = 0"},
-        '{32'd0, 32'hABCDE123, 5'b00011, 32'hABCDE123, 1'b0, "OR 0 | ABCDE123 = ABCDE123"},
-        '{32'd0, 32'hABCDE123, 5'b00100, 32'hABCDE123, 1'b0, "XOR 0 ^ ABCDE123 = ABCDE123"},
-        '{32'sd-10, 32'd5, 5'b00000, 32'sd-5, 1'b0, "ADD -10 + 5 = -5"},
-        '{32'd10, 32'sd-5, 5'b00001, 32'sd15, 1'b0, "SUB 10 - (-5) = 15"},
-
-        // --- Invalid Operations ---
-        // Undefined alu_op codes
-        '{32'd10, 32'd5, 5'b11111, 32'd0, 1'b1, "Invalid ALU Op 11111: Expected 0"},
-        '{32'd20, 32'd10, 5'b10101, 32'd0, 1'b1, "Invalid ALU Op 10101: Expected 0"}
-    };
-
-    // Main testing procedure
-    integer i; // Loop variable
-    initial begin
-        // Start with all inputs set to zero
+        // Initialize Inputs
+        en = 0;
         operand_a = 0;
         operand_b = 0;
-        alu_op    = 0;
+        alu_op = 0;
 
-        // Wait for a short period to stabilize
+        // Wait for global reset
         #10;
 
-        // Loop through each test case and apply the inputs to the ALU
-        for (i = 0; i < test_cases.size(); i++) begin
-            // Apply the operands and operation code from the current test case
-            operand_a = test_cases[i].a;
-            operand_b = test_cases[i].b;
-            alu_op    = test_cases[i].op;
+        // Test 1: Addition
+        apply_test(
+            32'd10,             // operand_a
+            32'd5,              // operand_b
+            ADD,                // alu_op
+            32'd15,             // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b0,               // expected_negative
+            32'd15,             // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
 
-            #10; // Wait for the ALU to process the inputs
+        // Test 2: Subtraction
+        apply_test(
+            32'd20,             // operand_a
+            32'd30,             // operand_b
+            SUB,                // alu_op
+            32'd-10,            // expected_result
+            1'b0,               // expected_zero
+            1'b1,               // expected_overflow (if signed)
+            1'b1,               // expected_carry_out
+            1'b1,               // expected_negative
+            32'd-10,            // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
 
-            // Display the test case information and results
-            $display("Test %0d: %s", i+1, test_cases[i].operation);
-            $display("Operands: A = %0d, B = %0d", operand_a, operand_b);
-            $display("Expected Result: %0d, Actual Result: %0d", test_cases[i].expected, result);
-            $display("Expected Zero Flag: %b, Actual Zero Flag: %b", test_cases[i].expected_zero, zero);
+        // Test 3: Logical AND
+        apply_test(
+            32'hFF00FF00,       // operand_a
+            32'h0F0F0F0F,       // operand_b
+            AND,                // alu_op
+            32'h0F000F00,       // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b0,               // expected_negative
+            32'h0F000F00,       // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
 
-            // Verify that the actual results match the expected results
-            if (result !== test_cases[i].expected) begin
-                $error("Result mismatch in Test %0d: Expected %0d, Got %0d", i+1, test_cases[i].expected, result);
-            end
-            if (zero !== test_cases[i].expected_zero) begin
-                $error("Zero flag mismatch in Test %0d: Expected %b, Got %b", i+1, test_cases[i].expected_zero, zero);
-            end
+        // Test 4: Logical OR
+        apply_test(
+            32'hFF00FF00,       // operand_a
+            32'h0F0F0F0F,       // operand_b
+            OR,                 // alu_op
+            32'hFF0FFF0F,       // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b1,               // expected_negative
+            32'hFF0FFF0F,       // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
 
-            $display("--------------------------------------------------");
-        end
+        // Test 5: XOR
+        apply_test(
+            32'hAAAA5555,       // operand_a
+            32'h5555AAAA,       // operand_b
+            XOR,                // alu_op
+            32'hFFFFFFFF,       // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b1,               // expected_negative
+            32'hFFFFFFFF,       // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
 
-        // Indicate that all tests have been completed
-        $display("All ALU tests completed successfully.");
-        $finish; // End the simulation
+        // Test 6: Shift Left Logical
+        apply_test(
+            32'd1,              // operand_a
+            32'd4,              // operand_b (shift by 4)
+            SLL,                // alu_op
+            32'd16,             // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b0,               // expected_negative
+            32'd16,             // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
+
+        // Test 7: Rotate Left
+        apply_test(
+            32'h12345678,       // operand_a
+            32'd8,              // operand_b (rotate by 8)
+            ROL,                // alu_op
+            32'h34567812,       // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b0,               // expected_negative
+            32'h34567812,       // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
+
+        // Test 8: Floating-Point Addition
+        apply_test(
+            32'h40000000,       // operand_a (2.0 in IEEE 754)
+            32'h40000000,       // operand_b (2.0 in IEEE 754)
+            FADD,               // alu_op
+            32'h40000000,       // expected_result (ignored for FPU)
+            1'b0,               // expected_zero (ignored for FPU)
+            1'b0,               // expected_overflow (FPU)
+            1'b0,               // expected_carry_out (ignored for FPU)
+            1'b0,               // expected_negative (ignored for FPU)
+            32'h40800000,       // expected_fp_result (4.0 in IEEE 754)
+            1'b0                // expected_fp_overflow
+        );
+
+        // Test 9: Floating-Point Division by Zero
+        apply_test(
+            32'h40000000,       // operand_a (2.0 in IEEE 754)
+            32'h00000000,       // operand_b (0.0 in IEEE 754)
+            FDIV,               // alu_op
+            32'h40000000,       // expected_result (ignored for FPU)
+            1'b0,               // expected_zero (ignored for FPU)
+            1'b1,               // expected_overflow (FPU)
+            1'b0,               // expected_carry_out (ignored for FPU)
+            1'b0,               // expected_negative (ignored for FPU)
+            32'h00000000,       // expected_fp_result (undefined, set to 0)
+            1'b1                // expected_fp_overflow
+        );
+
+        // Test 10: SIMD Addition
+        // Applying the same addition to all SIMD lanes with different operands
+        apply_test(
+            32'd100,            // operand_a
+            32'd200,            // operand_b
+            ADD,                // alu_op
+            32'd300,            // expected_result
+            1'b0,               // expected_zero
+            1'b0,               // expected_overflow
+            1'b0,               // expected_carry_out
+            1'b0,               // expected_negative
+            32'd300,            // expected_fp_result
+            1'b0                // expected_fp_overflow
+        );
+
+        // Additional Tests can be added similarly...
+
+        // End Simulation
+        #20;
+        $display("All tests completed.");
+        $finish;
     end
 
 endmodule

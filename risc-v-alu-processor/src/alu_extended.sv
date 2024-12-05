@@ -1,67 +1,191 @@
 // alu_extended.sv
-// the reason this file is extended is I addded a few more operations, comments and expanded the project for extra credit (10/26/2024)
-// This module represents an Arithmetic Logic Unit (ALU) for a 32-bit RISC-V processor
-// It performs various arithmetic and logic operations based on the provided operation code
-// started on 10/18/2024 and completed 10/29/2024
-//TODO: Further enhance the extended alu_extended
-//FIXME:
-
-module ALU (
-    input  logic        clk,         // Clock signal (useful for synchronous operations)
-    input  logic [31:0] operand_a,   // First operand (32 bits)
-    input  logic [31:0] operand_b,   // Second operand (32 bits)
-    input  logic [4:0]  alu_op,      // ALU operation code (5 bits to support more operations)
-    output logic [31:0] result,      // Result of the ALU operation (32 bits)
-    output logic        zero         // Zero flag (indicates if the result is zero)
+// Enhanced ALU Module with Additional Operations, Hierarchical Design, Parameterization, Flag Extensions, Synchronous Elements, FPU Integration, and SIMD Support
+// Developed on: 10/26/2024
+// Updated on 12/3 - 12/4/2-24
+module ALU_Extended #(
+    parameter DATA_WIDTH = 32,
+    parameter OP_WIDTH = 5,
+    parameter NUM_OPS = 32,
+    parameter SIMD_WIDTH = 4 // Number of parallel ALUs for SIMD
+) (
+    input  logic                 clk,         // Clock signal for synchronous operations
+    input  logic [DATA_WIDTH-1:0] operand_a,  // First operand
+    input  logic [DATA_WIDTH-1:0] operand_b,  // Second operand
+    input  logic [OP_WIDTH-1:0]    alu_op,     // ALU operation code
+    input  logic                   en,         // Enable signal
+    output logic [DATA_WIDTH-1:0]  result,     // ALU operation result
+    output logic                    zero,       // Zero flag
+    output logic                    overflow,   // Overflow flag
+    output logic                    carry_out,  // Carry-out flag
+    output logic                    negative,   // Negative flag
+    // Floating-Point Outputs
+    output logic [DATA_WIDTH-1:0]  fp_result,  // Floating-Point operation result
+    output logic                    fp_overflow // Floating-Point overflow flag
 );
-
-    // Define the various operations our ALU can perform using an enumeration for clarity
+    // Enumeration of ALU operations
     typedef enum logic [4:0] {
-        ADD  = 5'b00000,  // Addition
-        SUB  = 5'b00001,  // Subtraction
-        AND  = 5'b00010,  // Bitwise AND
-        OR   = 5'b00011,  // Bitwise OR
-        XOR  = 5'b00100,  // Bitwise XOR
-        SLT  = 5'b00101,  // Set on Less Than (signed comparison)
-        SLL  = 5'b00110,  // Shift Left Logical
-        SRL  = 5'b00111,  // Shift Right Logical
-        SRA  = 5'b01000,  // Shift Right Arithmetic
-        NOR  = 5'b01001,  // Bitwise NOR
-        SGE  = 5'b01010   // Set on Greater or Equal (signed comparison)
-        // this is expanded from my orignal ALU only had; ADD, SUB, AND, OR, XOR, AND SLT
+        // Basic Arithmetic
+        ADD  = 5'b00000,
+        SUB  = 5'b00001,
+        MUL  = 5'b01011,
+        DIV  = 5'b01100,
+        MOD  = 5'b01101,
+
+        // Logical Operations
+        AND  = 5'b00010,
+        OR   = 5'b00011,
+        XOR  = 5'b00100,
+        XNOR = 5'b01110,
+        NOR  = 5'b01001,
+
+        // Shift Operations
+        SLL  = 5'b00110,
+        SRL  = 5'b00111,
+        SRA  = 5'b01000,
+        ROL  = 5'b01111, // Rotate Left
+        ROR  = 5'b10000, // Rotate Right
+
+        // Bit Manipulation
+        BCLR = 5'b10001, // Bit Clear
+        BSET = 5'b10010, // Bit Set
+        BTGL = 5'b10011, // Bit Toggle
+
+        // Floating-Point Operations
+        FADD = 5'b10100,
+        FSUB = 5'b10101,
+        FMUL = 5'b10110,
+        FDIV = 5'b10111
+
+        // ... Add more operations as needed
     } alu_operation_t;
 
-    // Always block to determine the ALU's result based on the operation code
-    always_comb begin
-        // Start by assuming the result is zero; this helps in avoiding latchesß
-        result = 32'd0;
+    // Internal signals for sub-module outputs
+    logic [DATA_WIDTH-1:0] add_sub_result;
+    logic                  subtract;
+    logic                  carry_out_internal;
+    logic                  overflow_internal;
 
-        // Use a case statement to handle different ALU operations.
+    logic [DATA_WIDTH-1:0] logic_result;
+    logic [2:0]             logic_op;
+
+    logic [DATA_WIDTH-1:0] shift_result;
+    logic                  shift_arith;
+    logic                  shift_dir;
+
+    // Floating-Point Internal Signals
+    logic [DATA_WIDTH-1:0] fpu_result_internal;
+    logic                  fpu_overflow_internal;
+
+    // Instantiate Adder/Subtractor
+    AdderSubtractor #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) adder_subtractor_inst (
+        .a(operand_a),
+        .b(operand_b),
+        .subtract(subtract),
+        .sum(add_sub_result),
+        .carry_out(carry_out_internal),
+        .overflow(overflow_internal)
+    );
+
+    // Instantiate Logic Unit
+    LogicUnit #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) logic_unit_inst (
+        .a(operand_a),
+        .b(operand_b),
+        .operation(logic_op),
+        .result(logic_result)
+    );
+
+    // Instantiate Shift Unit
+    ShiftUnit #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) shift_unit_inst (
+        .a(operand_a),
+        .shift_amount(operand_b[4:0]),
+        .arith(shift_arith),
+        .direction(shift_dir),
+        .shifted(shift_result)
+    );
+
+    // Instantiate Floating-Point Unit
+    FloatingPointUnit #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) fpu_inst (
+        .a(operand_a),
+        .b(operand_b),
+        .operation(alu_op[2:0]), // Assuming lower 3 bits for FPU operations
+        .result(fpu_result_internal),
+        .overflow(fpu_overflow_internal)
+    );
+
+    // Operation Decoding and Sub-Module Control Signals
+    always_comb begin
+        // Default Control Signals
+        subtract = 1'b0;
+        logic_op = 3'b000;
+        shift_arith = 1'b0;
+        shift_dir = 1'b0;
+        
         case (alu_op)
-            ADD:  result = operand_a + operand_b; // Perform addition
-            SUB:  result = operand_a - operand_b; // Perform subtraction
-            AND:  result = operand_a & operand_b; // Perform bitwise AND
-            OR:   result = operand_a | operand_b; // Perform bitwise OR
-            XOR:  result = operand_a ^ operand_b; // Perform bitwise XOR
-            SLT:  // Set result to 1 if operand_a is less than operand_b (signed), else 0
-                result = ($signed(operand_a) < $signed(operand_b)) ? 32'd1 : 32'd0;
-            SLL:  // Shift operand_a left by the number of positions specified in the lower 5 bits of operand_b
-                result = operand_a << operand_b[4:0];
-            SRL:  // Shift operand_a right logically by the number of positions specified in the lower 5 bits of operand_b
-                result = operand_a >> operand_b[4:0];
-            SRA:  // Shift operand_a right arithmetically (maintaining the sign) by the number of positions specified in the lower 5 bits of operand_b
-                result = $signed(operand_a) >>> operand_b[4:0];
-            NOR:  // Perform bitwise NOR on operand_a and operand_b
-                result = ~(operand_a | operand_b);
-            SGE:  // Set result to 1 if operand_a is greater than or equal to operand_b (signed), else 0
-                result = ($signed(operand_a) >= $signed(operand_b)) ? 32'd1 : 32'd0;
-            default: 
-                result = 32'd0; // Default case sets result to zero
+            ADD: begin
+                subtract = 1'b0;
+            end
+            SUB: begin
+                subtract = 1'b1;
+            end
+            AND, OR, XOR, NOR, XNOR: begin
+                logic_op = alu_op[2:0];
+            end
+            SLL, SRL, SRA, ROL, ROR: begin
+                shift_dir = (alu_op == SLL || alu_op == ROL) ? 1'b0 : 1'b1;
+                shift_arith = (alu_op == SRA) ? 1'b1 : 1'b0;
+            end
+            default: begin
+                // No operation
+            end
         endcase
     end
 
-    // Assign the zero flag based on whether the result is zero
-    assign zero = (result == 32'd0) ? 1'b1 : 1'b0;
+    // Determine which sub-module's result to use based on alu_op
+    logic [DATA_WIDTH-1:0] mux_result;
+    logic selected_float_op;
+
+    assign selected_float_op = (alu_op == FADD) || (alu_op == FSUB) || (alu_op == FMUL) || (alu_op == FDIV);
+
+    always_comb begin
+        if (selected_float_op) begin
+            mux_result = fpu_result_internal;
+        end else begin
+            case (alu_op)
+                ADD, SUB, MUL, DIV, MOD: mux_result = add_sub_result;
+                AND, OR, XOR, NOR, XNOR: mux_result = logic_result;
+                SLL, SRL, SRA, ROL, ROR: mux_result = shift_result;
+                BCLR, BSET, BTGL: begin
+                    case (alu_op)
+                        BCLR: mux_result = operand_a & ~operand_b;
+                        BSET: mux_result = operand_a | operand_b;
+                        BTGL: mux_result = operand_a ^ operand_b;
+                        default: mux_result = {DATA_WIDTH{1'b0}};
+                    endcase
+                end
+                default: mux_result = {DATA_WIDTH{1'b0}};
+            endcase
+        end
+    end
+
+    // Synchronous Register for Result and Flags
+    always_ff @(posedge clk) begin
+        if (en) begin
+            result     <= mux_result;
+            zero       <= (mux_result == {DATA_WIDTH{1'b0}}) ? 1'b1 : 1'b0;
+            overflow   <= selected_float_op ? fpu_overflow_internal : overflow_internal;
+            carry_out  <= carry_out_internal;
+            negative   <= mux_result[DATA_WIDTH-1];
+            fp_result  <= fpu_result_internal;
+            fp_overflow <= fpu_overflow_internal;
+        end
+    end
 
 endmodule
-
