@@ -1,6 +1,6 @@
 // simd_alu_extended.sv
 // SIMD-Enabled ALU Module
-// Made on 12/3 - 12/4
+// Made on 12/3 - 12/4 for extra credit
 module SIMD_ALU_Extended #(
     parameter DATA_WIDTH = 32,
     parameter OP_WIDTH = 5,

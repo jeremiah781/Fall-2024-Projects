@@ -76,6 +76,41 @@ module ALU_Extended #(
     logic [DATA_WIDTH-1:0] fpu_result_internal;
     logic                  fpu_overflow_internal;
 
+    // Optional saturating arithmetic for ADD, SUB, MUL
+    logic saturate;
+    always_comb begin
+        // Default Control Signals
+        subtract = 1'b0;
+        logic_op = 3'b000;
+        shift_arith = 1'b0;
+        shift_dir = 1'b0;
+        saturate = 1'b0;
+        
+        case (alu_op)
+            ADD: begin
+                subtract = 1'b0;
+                saturate = 1'b1;
+            end
+            SUB: begin
+                subtract = 1'b1;
+                saturate = 1'b1;
+            end
+            AND, OR, XOR, NOR, XNOR: begin
+                logic_op = alu_op[2:0];
+            end
+            SLL, SRL, SRA, ROL, ROR: begin
+                shift_dir = (alu_op == SLL || alu_op == ROL) ? 1'b0 : 1'b1;
+                shift_arith = (alu_op == SRA) ? 1'b1 : 1'b0;
+            end
+            MUL: begin
+                saturate = 1'b1;
+            end
+            default: begin
+                // No operation
+            end
+        endcase
+    end
+
     // Instantiate Adder/Subtractor
     AdderSubtractor #(
         .DATA_WIDTH(DATA_WIDTH)
@@ -120,34 +155,6 @@ module ALU_Extended #(
         .overflow(fpu_overflow_internal)
     );
 
-    // Operation Decoding and Sub-Module Control Signals
-    always_comb begin
-        // Default Control Signals
-        subtract = 1'b0;
-        logic_op = 3'b000;
-        shift_arith = 1'b0;
-        shift_dir = 1'b0;
-        
-        case (alu_op)
-            ADD: begin
-                subtract = 1'b0;
-            end
-            SUB: begin
-                subtract = 1'b1;
-            end
-            AND, OR, XOR, NOR, XNOR: begin
-                logic_op = alu_op[2:0];
-            end
-            SLL, SRL, SRA, ROL, ROR: begin
-                shift_dir = (alu_op == SLL || alu_op == ROL) ? 1'b0 : 1'b1;
-                shift_arith = (alu_op == SRA) ? 1'b1 : 1'b0;
-            end
-            default: begin
-                // No operation
-            end
-        endcase
-    end
-
     // Determine which sub-module's result to use based on alu_op
     logic [DATA_WIDTH-1:0] mux_result;
     logic selected_float_op;
@@ -178,13 +185,27 @@ module ALU_Extended #(
     // Synchronous Register for Result and Flags
     always_ff @(posedge clk) begin
         if (en) begin
-            result     <= mux_result;
+            if (saturate && overflow_internal) begin
+                result <= (operand_a[DATA_WIDTH-1] == operand_b[DATA_WIDTH-1]) 
+                            ? {1'b0, {DATA_WIDTH-1{1'b1}}}
+                            : {1'b1, {DATA_WIDTH-1{1'b0}}};
+            end else begin
+                result     <= mux_result;
+            end
             zero       <= (mux_result == {DATA_WIDTH{1'b0}}) ? 1'b1 : 1'b0;
             overflow   <= selected_float_op ? fpu_overflow_internal : overflow_internal;
             carry_out  <= carry_out_internal;
             negative   <= mux_result[DATA_WIDTH-1];
-            fp_result  <= fpu_result_internal;
-            fp_overflow <= fpu_overflow_internal;
+        end
+    end
+
+    // Additional pipeline stage for FP operations
+    logic [DATA_WIDTH-1:0] fp_pipeline_reg;
+    always_ff @(posedge clk) begin
+        if (en) begin
+            fp_pipeline_reg <= fpu_result_internal;
+            fp_result       <= fp_pipeline_reg;
+            fp_overflow     <= fpu_overflow_internal;
         end
     end
 

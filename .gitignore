@@ -15,4 +15,5 @@ __pycache__/
 # IDE Specific Files
 .vscode/
 
-
+# research
+research/

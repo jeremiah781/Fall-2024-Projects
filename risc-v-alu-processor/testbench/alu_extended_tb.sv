@@ -91,7 +91,15 @@ module ALU_Extended_tb;
         end
     endtask
 
-    // Test Scenarios
+    // Coverage collection
+    covergroup alu_ops_cg @(posedge clk);
+        // Add bins to cover each ALU operation code
+        coverpoint uut.alu_op {
+            // Add bins for each operation
+        }
+    endgroup
+
+    // Random test generation
     initial begin
         // Initialize Inputs
         en = 0;
@@ -245,10 +253,26 @@ module ALU_Extended_tb;
 
         // Additional Tests can be added similarly...
 
+        // Randomized tests
+        repeat(1000) begin
+            operand_a = $urandom_range(0, 32'hFFFF_FFFF);
+            operand_b = $urandom_range(0, 32'hFFFF_FFFF);
+            alu_op = $urandom_range(0, 31);
+            @(posedge clk);
+        end
+
         // End Simulation
         #20;
         $display("All tests completed.");
         $finish;
+    end
+
+    // Simple scoreboard/reference model
+    always_ff @(posedge clk) begin
+        // Compare DUT result with a behavioral reference
+        if (uut.result !== ref_result) begin
+            $error("Mismatch between DUT result and reference result");
+        end
     end
 
 endmodule
