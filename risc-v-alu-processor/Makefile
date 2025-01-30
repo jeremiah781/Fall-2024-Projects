@@ -7,6 +7,12 @@ IVERILOG = iverilog    # Verilog/SystemVerilog compiler
 VVP      = vvp         # Simulation engine
 GTKWAVE  = gtkwave     # Waveform viewer
 
+# Uncomment the line below to enable debug flags:
+DEBUG_FLAGS = -g
+
+# Optional coverage flags (if your tools support them)
+COVERAGE_FLAGS = -fprofile-arcs -ftest-coverage
+
 # ----- Source and Testbench Files -----
 SRC = \
 	src/alu_extended.sv \
@@ -81,5 +87,26 @@ clean:
 	rm -f $(SIMV_ALU) $(SIMV_PROC) $(VCD_ALU) $(VCD_PROC)
 	rm -rf waveforms/
 
+# ----- Help Target -----
+help:
+	@echo "Available targets:"
+	@echo "  all                - Build and simulate the default processor testbench"
+	@echo "  compile_alu        - Compile ALU testbench"
+	@echo "  compile_proc       - Compile Processor testbench"
+	@echo "  simulate_alu       - Run ALU simulation"
+	@echo "  simulate_proc      - Run Processor simulation"
+	@echo "  view_alu           - View ALU VCD in GTKWave"
+	@echo "  view_proc          - View Processor VCD in GTKWave"
+	@echo "  coverage           - Example coverage target (tool-dependent)"
+	@echo "  clean              - Remove generated files"
+	@echo "Use 'make -jN' for parallel builds (N is number of threads)."
+
+# ----- Coverage Target -----
+coverage:
+	# Example coverage workflow (adjust for your coverage tools)
+	$(IVERILOG) $(DEBUG_FLAGS) $(COVERAGE_FLAGS) -o coverage.vvp $(SRC) $(TB_ALU)
+	$(VVP) coverage.vvp
+	@echo "Coverage data collected (tool-dependent)."
+
 # ----- Phony Targets -----
-.PHONY: all compile_alu compile_proc simulate_alu simulate_proc view_alu view_proc simulate_view_alu simulate_view_proc clean prepare_dirs
+.PHONY: all compile_alu compile_proc simulate_alu simulate_proc view_alu view_proc simulate_view_alu simulate_view_proc clean prepare_dirs help coverage

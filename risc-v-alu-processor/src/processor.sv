@@ -21,54 +21,30 @@ module Processor (
 
     // ----- Pipeline Registers -----
     // IF/ID Pipeline Register: Holds information between Instruction Fetch and Instruction Decode stages.
-    typedef struct {
-        logic [31:0] instruction; // Fetched instruction
-        logic [31:0] PC;          // Program Counter value at fetch
-    } IF_ID_Reg_t;
-    IF_ID_Reg_t IF_ID;
+    logic [31:0] IF_ID_instruction, IF_ID_PC;
 
     // ID/EX Pipeline Register: Holds information between Instruction Decode and Execute stages.
-    typedef struct {
-        logic [6:0] opcode;         // Opcode of the instruction
-        logic [4:0] rd;             // Destination register address
-        logic [4:0] rs1;            // Source register 1 address
-        logic [4:0] rs2;            // Source register 2 address
-        logic [2:0] funct3;         // Function field 3
-        logic [6:0] funct7;         // Function field 7
-        logic [31:0] read_data1;    // Data read from source register 1
-        logic [31:0] read_data2;    // Data read from source register 2
-        logic [31:0] immediate;     // Immediate value (if applicable)
-        logic reg_write;            // Control signal to enable register write
-        logic mem_read;             // Control signal to enable memory read
-        logic mem_write;            // Control signal to enable memory write
-        logic branch;               // Control signal indicating a branch instruction
-        logic jump;                 // Control signal indicating a jump instruction
-        logic [4:0] alu_op;         // ALU operation code
-    } ID_EX_Reg_t;
-    ID_EX_Reg_t ID_EX;
+    logic [6:0]  ID_EX_opcode;
+    logic [4:0]  ID_EX_rd, ID_EX_rs1, ID_EX_rs2;
+    logic [2:0]  ID_EX_funct3;
+    logic [6:0]  ID_EX_funct7;
+    logic [31:0] ID_EX_read_data1, ID_EX_read_data2;
+    logic [31:0] ID_EX_immediate;
+    logic        ID_EX_reg_write, ID_EX_mem_read, ID_EX_mem_write;
+    logic        ID_EX_branch, ID_EX_jump;
+    logic [4:0]  ID_EX_alu_op;
 
     // EX/MEM Pipeline Register: Holds information between Execute and Memory stages.
-    typedef struct {
-        logic [31:0] alu_result;    // Result from the ALU
-        logic [31:0] write_data;    // Data to be written to memory (for store operations)
-        logic [4:0] rd;             // Destination register address
-        logic reg_write;            // Control signal to enable register write
-        logic mem_read;             // Control signal to enable memory read
-        logic mem_write;            // Control signal to enable memory write
-        logic branch;               // Control signal indicating a branch instruction
-        logic jump;                 // Control signal indicating a jump instruction
-        logic zero;                 // Zero flag from the ALU (used for branch decisions)
-    } EX_MEM_Reg_t;
-    EX_MEM_Reg_t EX_MEM;
+    logic [31:0] EX_MEM_alu_result, EX_MEM_write_data;
+    logic [4:0]  EX_MEM_rd;
+    logic        EX_MEM_reg_write, EX_MEM_mem_read, EX_MEM_mem_write;
+    logic        EX_MEM_branch, EX_MEM_jump, EX_MEM_zero;
 
     // MEM/WB Pipeline Register: Holds information between Memory and Write-Back stages.
-    typedef struct {
-        logic [31:0] mem_data;      // Data read from memory (for load operations)
-        logic [31:0] alu_result;    // ALU result passed through
-        logic [4:0] rd;             // Destination register address
-        logic reg_write;            // Control signal to enable register write
-    } MEM_WB_Reg_t;
-    MEM_WB_Reg_t MEM_WB;
+    logic [31:0] MEM_WB_mem_data;
+    logic [31:0] MEM_WB_alu_result;
+    logic [4:0]  MEM_WB_rd;
+    logic        MEM_WB_reg_write;
 
     // ----- Instruction Memory -----
     // Fetches the instruction based on the current PC value.
@@ -83,23 +59,25 @@ module Processor (
     logic [31:0] mem_read_data;
     DataMemory dmem (
         .clk(clk),
-        .address(EX_MEM.alu_result), // Address computed by ALU
-        .write_data(EX_MEM.write_data), // Data to be written (for SW)
-        .mem_write(EX_MEM.mem_write), // Control signal for write
-        .mem_read(EX_MEM.mem_read),   // Control signal for read
+        .address(EX_MEM_alu_result), // Address computed by ALU
+        .write_data(EX_MEM_write_data), // Data to be written (for SW)
+        .mem_write(EX_MEM_mem_write), // Control signal for write
+        .mem_read(EX_MEM_mem_read),   // Control signal for read
         .read_data(mem_read_data)     // Data read from memory (for LW)
     );
 
     // ----- Register File -----
     // Manages the processor's general-purpose registers, allowing data to be read from and written to them.
+    logic [31:0] write_data;
+    logic [31:0] read_data1, read_data2;
     RegisterFile regfile (
         .clk(clk),
         .reset(reset),
-        .read_reg1(IF_ID.instruction[19:15]), // rs1 field from IF/ID stage
-        .read_reg2(IF_ID.instruction[24:20]), // rs2 field from IF/ID stage
-        .write_reg(MEM_WB.rd),                // Destination register from MEM/WB stage
+        .read_reg1(IF_ID_instruction[19:15]), // rs1 field from IF/ID stage
+        .read_reg2(IF_ID_instruction[24:20]), // rs2 field from IF/ID stage
+        .write_reg(MEM_WB_rd),                // Destination register from MEM/WB stage
         .write_data(write_data),               // Data to write to the register
-        .reg_write(MEM_WB.reg_write),         // Control signal to enable write
+        .reg_write(MEM_WB_reg_write),         // Control signal to enable write
         .read_data1(read_data1),               // Data read from rs1
         .read_data2(read_data2)                // Data read from rs2
     );
@@ -107,23 +85,25 @@ module Processor (
     // ----- Control Unit -----
     // Generates control signals based on the opcode of the instruction in the ID/EX stage.
     ControlUnit control (
-        .opcode(ID_EX.opcode),
-        .reg_write(ID_EX.reg_write),
-        .mem_read(ID_EX.mem_read),
-        .mem_write(ID_EX.mem_write),
-        .branch(ID_EX.branch),
-        .jump(ID_EX.jump),
-        .alu_op(ID_EX.alu_op)
+        .opcode(ID_EX_opcode),
+        .reg_write(ID_EX_reg_write),
+        .mem_read(ID_EX_mem_read),
+        .mem_write(ID_EX_mem_write),
+        .branch(ID_EX_branch),
+        .jump(ID_EX_jump),
+        .alu_op(ID_EX_alu_op)
     );
 
     // ----- ALU -----
     // Executes arithmetic and logic operations as specified by the ALU operation code.
+    logic [31:0] alu_result;
+    logic        alu_zero;
     ALU_Extended alu (
         .clk(clk),
         .reset(reset),
-        .operand_a(ID_EX.read_data1),    // Operand A from Register File
-        .operand_b(ID_EX.immediate),     // Operand B (could be immediate or register data)
-        .alu_op(ID_EX.alu_op),           // Operation code from Control Unit
+        .operand_a(ID_EX_read_data1),    // Operand A from Register File
+        .operand_b(ID_EX_immediate),     // Operand B (could be immediate or register data)
+        .alu_op(ID_EX_alu_op),           // Operation code from Control Unit
         .en(1'b1),                        // Enable signal (always enabled in this design)
         .result(alu_result),             // Result of the ALU operation
         .zero(alu_zero),                 // Zero flag indicating if result is zero
@@ -137,15 +117,15 @@ module Processor (
     // ----- Branch Comparator -----
     // Determines if a branch should be taken based on the branch condition and ALU zero flag.
     logic branch_taken;
-    assign branch_taken = (ID_EX.branch && alu_zero);
+    assign branch_taken = (ID_EX_branch && alu_zero);
 
     // ----- Next PC Logic -----
     // Determines the next value of the Program Counter based on branching and jumping.
     always_comb begin
-        if (ID_EX.jump) begin
-            next_PC = ID_EX.immediate; // Unconditional jump: set PC to immediate address
+        if (ID_EX_jump) begin
+            next_PC = ID_EX_immediate; // Unconditional jump: set PC to immediate address
         end else if (branch_taken) begin
-            next_PC = ID_EX.PC + ID_EX.immediate; // Conditional branch: set PC relative to current
+            next_PC = ID_EX_PC + ID_EX_immediate; // Conditional branch: set PC relative to current
         end else begin
             next_PC = PC + 4; // Sequential execution: increment PC by 4
         end
@@ -155,10 +135,10 @@ module Processor (
     // Detects data hazards that require stalling the pipeline to prevent incorrect data usage.
     logic stall;
     HazardDetectionUnit hazard (
-        .ID_EX_mem_read(ID_EX.mem_read), // Indicates if the previous instruction is a load
-        .ID_EX_rd(ID_EX.rd),             // Destination register of the previous instruction
-        .IF_ID_rs1(IF_ID.instruction[19:15]), // Source register 1 of the current instruction
-        .IF_ID_rs2(IF_ID.instruction[24:20]), // Source register 2 of the current instruction
+        .ID_EX_mem_read(ID_EX_mem_read), // Indicates if the previous instruction is a load
+        .ID_EX_rd(ID_EX_rd),             // Destination register of the previous instruction
+        .IF_ID_rs1(IF_ID_instruction[19:15]), // Source register 1 of the current instruction
+        .IF_ID_rs2(IF_ID_instruction[24:20]), // Source register 2 of the current instruction
         .stall(stall)                      // Output stall signal
     );
 
@@ -184,31 +164,59 @@ module Processor (
     // **IF/ID Register:** Pass fetched instruction and PC to the next stage.
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            IF_ID.instruction <= 32'd0;
-            IF_ID.PC <= 32'd0;
+            IF_ID_instruction <= 32'd0;
+            IF_ID_PC <= 32'd0;
         end else if (!stall) begin
-            IF_ID.instruction <= current_instruction; // Instruction fetched from Instruction Memory
-            IF_ID.PC <= PC;                           // Current PC value
+            IF_ID_instruction <= current_instruction; // Instruction fetched from Instruction Memory
+            IF_ID_PC <= PC;                           // Current PC value
         end
     end
 
     // **ID/EX Register:** Decode instruction and prepare data for execution.
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            ID_EX <= '{default: '0}; // Reset all fields to zero
+            ID_EX_opcode     <= 7'd0;
+            ID_EX_rd         <= 5'd0;
+            ID_EX_rs1        <= 5'd0;
+            ID_EX_rs2        <= 5'd0;
+            ID_EX_funct3     <= 3'd0;
+            ID_EX_funct7     <= 7'd0;
+            ID_EX_read_data1 <= 32'd0;
+            ID_EX_read_data2 <= 32'd0;
+            ID_EX_immediate  <= 32'd0;
+            ID_EX_reg_write  <= 1'b0;
+            ID_EX_mem_read   <= 1'b0;
+            ID_EX_mem_write  <= 1'b0;
+            ID_EX_branch     <= 1'b0;
+            ID_EX_jump       <= 1'b0;
+            ID_EX_alu_op     <= 5'd0;
         end else if (flush) begin
-            ID_EX <= '{default: '0}; // Flush pipeline by resetting ID/EX register
+            ID_EX_opcode     <= 7'd0;
+            ID_EX_rd         <= 5'd0;
+            ID_EX_rs1        <= 5'd0;
+            ID_EX_rs2        <= 5'd0;
+            ID_EX_funct3     <= 3'd0;
+            ID_EX_funct7     <= 7'd0;
+            ID_EX_read_data1 <= 32'd0;
+            ID_EX_read_data2 <= 32'd0;
+            ID_EX_immediate  <= 32'd0;
+            ID_EX_reg_write  <= 1'b0;
+            ID_EX_mem_read   <= 1'b0;
+            ID_EX_mem_write  <= 1'b0;
+            ID_EX_branch     <= 1'b0;
+            ID_EX_jump       <= 1'b0;
+            ID_EX_alu_op     <= 5'd0;
         end else begin
             // Extract fields from the instruction
-            ID_EX.opcode     <= IF_ID.instruction[6:0];   // Opcode field
-            ID_EX.rd         <= IF_ID.instruction[11:7];  // Destination register
-            ID_EX.rs1        <= IF_ID.instruction[19:15]; // Source register 1
-            ID_EX.rs2        <= IF_ID.instruction[24:20]; // Source register 2
-            ID_EX.funct3     <= IF_ID.instruction[14:12]; // Function field 3
-            ID_EX.funct7     <= IF_ID.instruction[31:25]; // Function field 7
-            ID_EX.read_data1 <= read_data1;                // Data from source register 1
-            ID_EX.read_data2 <= read_data2;                // Data from source register 2
-            ID_EX.immediate  <= sign_extend(IF_ID.instruction); // Sign-extended immediate value
+            ID_EX_opcode     <= IF_ID_instruction[6:0];   // Opcode field
+            ID_EX_rd         <= IF_ID_instruction[11:7];  // Destination register
+            ID_EX_rs1        <= IF_ID_instruction[19:15]; // Source register 1
+            ID_EX_rs2        <= IF_ID_instruction[24:20]; // Source register 2
+            ID_EX_funct3     <= IF_ID_instruction[14:12]; // Function field 3
+            ID_EX_funct7     <= IF_ID_instruction[31:25]; // Function field 7
+            ID_EX_read_data1 <= read_data1;                // Data from source register 1
+            ID_EX_read_data2 <= read_data2;                // Data from source register 2
+            ID_EX_immediate  <= sign_extend(IF_ID_instruction); // Sign-extended immediate value
 
             // Control signals are generated combinationally by the Control Unit based on ID_EX.opcode
             // These signals are already connected via the Control Unit instantiation above
@@ -218,10 +226,10 @@ module Processor (
     // Enhanced hazard detection for consecutive read/write to same register
     logic multi_cycle_in_progress;
     always_comb begin
-        if (ID_EX.rd == IF_ID.instruction[19:15] && ID_EX.reg_write) begin
+        if (ID_EX_rd == IF_ID_instruction[19:15] && ID_EX_reg_write) begin
             // Additional logic to handle or bypass hazard
         end
-        if (ID_EX.rd == IF_ID.instruction[19:15] && ID_EX.reg_write && multi_cycle_in_progress) begin
+        if (ID_EX_rd == IF_ID_instruction[19:15] && ID_EX_reg_write && multi_cycle_in_progress) begin
             stall = 1; // Stall pipeline for multi-cycle operation
         end
     end
@@ -229,35 +237,46 @@ module Processor (
     // **EX/MEM Register:** Pass ALU results and control signals to the Memory stage.
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            EX_MEM <= '{default: '0}; // Reset all fields to zero
+            EX_MEM_alu_result <= 32'd0;
+            EX_MEM_write_data <= 32'd0;
+            EX_MEM_rd         <= 5'd0;
+            EX_MEM_reg_write  <= 1'b0;
+            EX_MEM_mem_read   <= 1'b0;
+            EX_MEM_mem_write  <= 1'b0;
+            EX_MEM_branch     <= 1'b0;
+            EX_MEM_jump       <= 1'b0;
+            EX_MEM_zero       <= 1'b0;
         end else begin
-            EX_MEM.alu_result <= alu_result;        // Result from the ALU
-            EX_MEM.write_data  <= ID_EX.read_data2; // Data to write to memory (for SW)
-            EX_MEM.rd          <= ID_EX.rd;         // Destination register
-            EX_MEM.reg_write   <= ID_EX.reg_write;  // Control signal for register write
-            EX_MEM.mem_read    <= ID_EX.mem_read;   // Control signal for memory read
-            EX_MEM.mem_write   <= ID_EX.mem_write;  // Control signal for memory write
-            EX_MEM.branch      <= ID_EX.branch;     // Branch control signal
-            EX_MEM.jump        <= ID_EX.jump;       // Jump control signal
-            EX_MEM.zero        <= alu_zero;         // Zero flag from ALU (for branch decisions)
+            EX_MEM_alu_result <= alu_result;        // Result from the ALU
+            EX_MEM_write_data <= ID_EX_read_data2; // Data to write to memory (for SW)
+            EX_MEM_rd         <= ID_EX_rd;         // Destination register
+            EX_MEM_reg_write  <= ID_EX_reg_write;  // Control signal for register write
+            EX_MEM_mem_read   <= ID_EX_mem_read;   // Control signal for memory read
+            EX_MEM_mem_write  <= ID_EX_mem_write;  // Control signal for memory write
+            EX_MEM_branch     <= ID_EX_branch;     // Branch control signal
+            EX_MEM_jump       <= ID_EX_jump;       // Jump control signal
+            EX_MEM_zero       <= alu_zero;         // Zero flag from ALU (for branch decisions)
         end
     end
 
     // **MEM/WB Register:** Pass data from Memory or ALU to the Write-Back stage.
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            MEM_WB <= '{default: '0}; // Reset all fields to zero
+            MEM_WB_mem_data   <= 32'd0;
+            MEM_WB_alu_result <= 32'd0;
+            MEM_WB_rd         <= 5'd0;
+            MEM_WB_reg_write  <= 1'b0;
         end else begin
-            MEM_WB.mem_data    <= mem_read_data;    // Data read from Data Memory (for LW)
-            MEM_WB.alu_result  <= EX_MEM.alu_result; // ALU result (for arithmetic operations)
-            MEM_WB.rd          <= EX_MEM.rd;        // Destination register
-            MEM_WB.reg_write   <= EX_MEM.reg_write; // Control signal for register write
+            MEM_WB_mem_data   <= mem_read_data;    // Data read from Data Memory (for LW)
+            MEM_WB_alu_result <= EX_MEM_alu_result; // ALU result (for arithmetic operations)
+            MEM_WB_rd         <= EX_MEM_rd;        // Destination register
+            MEM_WB_reg_write  <= EX_MEM_reg_write; // Control signal for register write
         end
     end
 
     // ----- Write-Back Stage -----
     // Determines the data to write back to the Register File based on memory read signals.
-    assign write_data = EX_MEM.mem_read ? MEM_WB.mem_data : MEM_WB.alu_result;
+    assign write_data = EX_MEM_mem_read ? MEM_WB_mem_data : MEM_WB_alu_result;
 
     // ----- Instruction Fields Extraction for Immediate -----
     // Function to sign-extend immediate values based on instruction type.
@@ -299,10 +318,36 @@ module Processor (
             // Initialize as needed on reset
         end else if (interrupt) begin
             // Flush all pipeline registers by resetting them
-            IF_ID <= '{default: '0};
-            ID_EX <= '{default: '0};
-            EX_MEM <= '{default: '0};
-            MEM_WB <= '{default: '0};
+            IF_ID_instruction <= 32'd0;
+            IF_ID_PC <= 32'd0;
+            ID_EX_opcode     <= 7'd0;
+            ID_EX_rd         <= 5'd0;
+            ID_EX_rs1        <= 5'd0;
+            ID_EX_rs2        <= 5'd0;
+            ID_EX_funct3     <= 3'd0;
+            ID_EX_funct7     <= 7'd0;
+            ID_EX_read_data1 <= 32'd0;
+            ID_EX_read_data2 <= 32'd0;
+            ID_EX_immediate  <= 32'd0;
+            ID_EX_reg_write  <= 1'b0;
+            ID_EX_mem_read   <= 1'b0;
+            ID_EX_mem_write  <= 1'b0;
+            ID_EX_branch     <= 1'b0;
+            ID_EX_jump       <= 1'b0;
+            ID_EX_alu_op     <= 5'd0;
+            EX_MEM_alu_result <= 32'd0;
+            EX_MEM_write_data <= 32'd0;
+            EX_MEM_rd         <= 5'd0;
+            EX_MEM_reg_write  <= 1'b0;
+            EX_MEM_mem_read   <= 1'b0;
+            EX_MEM_mem_write  <= 1'b0;
+            EX_MEM_branch     <= 1'b0;
+            EX_MEM_jump       <= 1'b0;
+            EX_MEM_zero       <= 1'b0;
+            MEM_WB_mem_data   <= 32'd0;
+            MEM_WB_alu_result <= 32'd0;
+            MEM_WB_rd         <= 5'd0;
+            MEM_WB_reg_write  <= 1'b0;
             // Redirect PC to the interrupt vector address
             PC <= interrupt_vector;
             // Enqueue interrupt in the lowest available priority slot
