@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // processor.sv
 // Enhanced RISC-V Processor Module with Branching, Pipelining, Memory Integration, Interrupts, and Power Optimizations
 // Developed on: 11/05/2024
@@ -13,6 +15,15 @@ module Processor (
     output logic pipeline_stall_dbg,
     output logic pipeline_flush_dbg
 );
+
+    // Add these wire declarations at the top
+    wire        ID_EX_reg_write_w, ID_EX_mem_read_w, ID_EX_mem_write_w;
+    wire        ID_EX_branch_w, ID_EX_jump_w;
+    wire [4:0]  ID_EX_alu_op_w;
+    wire        stall_w;
+
+    // Declare the stall signal as logic instead of wire to allow procedural assignments
+    logic stall; // Changed from wire to logic
 
     // ----- Program Counter (PC) -----
     // The PC holds the address of the next instruction to fetch.
@@ -33,6 +44,7 @@ module Processor (
     logic        ID_EX_reg_write, ID_EX_mem_read, ID_EX_mem_write;
     logic        ID_EX_branch, ID_EX_jump;
     logic [4:0]  ID_EX_alu_op;
+    logic [31:0] ID_EX_PC;
 
     // EX/MEM Pipeline Register: Holds information between Execute and Memory stages.
     logic [31:0] EX_MEM_alu_result, EX_MEM_write_data;
@@ -86,12 +98,12 @@ module Processor (
     // Generates control signals based on the opcode of the instruction in the ID/EX stage.
     ControlUnit control (
         .opcode(ID_EX_opcode),
-        .reg_write(ID_EX_reg_write),
-        .mem_read(ID_EX_mem_read),
-        .mem_write(ID_EX_mem_write),
-        .branch(ID_EX_branch),
-        .jump(ID_EX_jump),
-        .alu_op(ID_EX_alu_op)
+        .reg_write(ID_EX_reg_write_w),
+        .mem_read(ID_EX_mem_read_w),
+        .mem_write(ID_EX_mem_write_w),
+        .branch(ID_EX_branch_w),
+        .jump(ID_EX_jump_w),
+        .alu_op(ID_EX_alu_op_w)
     );
 
     // ----- ALU -----
@@ -100,11 +112,10 @@ module Processor (
     logic        alu_zero;
     ALU_Extended alu (
         .clk(clk),
-        .reset(reset),
+        .en(1'b1),
         .operand_a(ID_EX_read_data1),    // Operand A from Register File
         .operand_b(ID_EX_immediate),     // Operand B (could be immediate or register data)
         .alu_op(ID_EX_alu_op),           // Operation code from Control Unit
-        .en(1'b1),                        // Enable signal (always enabled in this design)
         .result(alu_result),             // Result of the ALU operation
         .zero(alu_zero),                 // Zero flag indicating if result is zero
         .overflow(),                      // Overflow flag (optional)
@@ -121,7 +132,7 @@ module Processor (
 
     // ----- Next PC Logic -----
     // Determines the next value of the Program Counter based on branching and jumping.
-    always_comb begin
+    always @* begin
         if (ID_EX_jump) begin
             next_PC = ID_EX_immediate; // Unconditional jump: set PC to immediate address
         end else if (branch_taken) begin
@@ -133,13 +144,12 @@ module Processor (
 
     // ----- Hazard Detection Unit -----
     // Detects data hazards that require stalling the pipeline to prevent incorrect data usage.
-    logic stall;
     HazardDetectionUnit hazard (
         .ID_EX_mem_read(ID_EX_mem_read), // Indicates if the previous instruction is a load
         .ID_EX_rd(ID_EX_rd),             // Destination register of the previous instruction
         .IF_ID_rs1(IF_ID_instruction[19:15]), // Source register 1 of the current instruction
         .IF_ID_rs2(IF_ID_instruction[24:20]), // Source register 2 of the current instruction
-        .stall(stall)                      // Output stall signal
+        .stall(stall_w)                      // Output stall signal
     );
 
     // ----- Pipeline Control -----
@@ -190,6 +200,7 @@ module Processor (
             ID_EX_branch     <= 1'b0;
             ID_EX_jump       <= 1'b0;
             ID_EX_alu_op     <= 5'd0;
+            ID_EX_PC         <= 32'd0;
         end else if (flush) begin
             ID_EX_opcode     <= 7'd0;
             ID_EX_rd         <= 5'd0;
@@ -206,6 +217,7 @@ module Processor (
             ID_EX_branch     <= 1'b0;
             ID_EX_jump       <= 1'b0;
             ID_EX_alu_op     <= 5'd0;
+            ID_EX_PC         <= 32'd0;
         end else begin
             // Extract fields from the instruction
             ID_EX_opcode     <= IF_ID_instruction[6:0];   // Opcode field
@@ -217,6 +229,7 @@ module Processor (
             ID_EX_read_data1 <= read_data1;                // Data from source register 1
             ID_EX_read_data2 <= read_data2;                // Data from source register 2
             ID_EX_immediate  <= sign_extend(IF_ID_instruction); // Sign-extended immediate value
+            ID_EX_PC         <= IF_ID_PC;                  // Current PC value
 
             // Control signals are generated combinationally by the Control Unit based on ID_EX.opcode
             // These signals are already connected via the Control Unit instantiation above
@@ -225,12 +238,13 @@ module Processor (
 
     // Enhanced hazard detection for consecutive read/write to same register
     logic multi_cycle_in_progress;
-    always_comb begin
+    always @* begin
+        stall_internal = stall_w;
         if (ID_EX_rd == IF_ID_instruction[19:15] && ID_EX_reg_write) begin
             // Additional logic to handle or bypass hazard
         end
         if (ID_EX_rd == IF_ID_instruction[19:15] && ID_EX_reg_write && multi_cycle_in_progress) begin
-            stall = 1; // Stall pipeline for multi-cycle operation
+            stall_internal = 1'b1;
         end
     end
 
@@ -335,6 +349,7 @@ module Processor (
             ID_EX_branch     <= 1'b0;
             ID_EX_jump       <= 1'b0;
             ID_EX_alu_op     <= 5'd0;
+            ID_EX_PC         <= 32'd0;
             EX_MEM_alu_result <= 32'd0;
             EX_MEM_write_data <= 32'd0;
             EX_MEM_rd         <= 5'd0;
@@ -359,5 +374,31 @@ module Processor (
     // Actual implementation would require identifying clock-enable signals for each module and controlling them based on activity.
     // For simplicity, this example assumes ALU is always enabled.
     // Implement clock gating based on module activity as per specific design requirements.
+
+    // Then assign those wires to the actual registers
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            // ...existing reset logic...
+        end else begin
+            ID_EX_reg_write <= ID_EX_reg_write_w;
+            ID_EX_mem_read  <= ID_EX_mem_read_w;
+            ID_EX_mem_write <= ID_EX_mem_write_w;
+            ID_EX_branch    <= ID_EX_branch_w;
+            ID_EX_jump      <= ID_EX_jump_w;
+            ID_EX_alu_op    <= ID_EX_alu_op_w;
+        end
+    end
+
+    // Fix for unresolved stall wire
+    logic stall_internal;
+    assign stall = stall_internal;
+
+    // Fix for hazard detection assignment
+    always @* begin
+        stall_internal = stall_w;
+        if (ID_EX_rd == IF_ID_instruction[19:15] && ID_EX_reg_write && multi_cycle_in_progress) begin
+            stall_internal = 1'b1;
+        end
+    end
 
 endmodule

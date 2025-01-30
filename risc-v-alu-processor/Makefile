@@ -15,6 +15,12 @@ COVERAGE_FLAGS = -fprofile-arcs -ftest-coverage
 
 # ----- Source and Testbench Files -----
 SRC = \
+	src/hazard_detection_unit.sv \
+	src/data_memory.sv \
+	src/adder_subtractor.sv \
+	src/logic_unit.sv \
+	src/shift_unit.sv \
+	src/floating_point_unit.sv \
 	src/alu_extended.sv \
 	src/alu_pipelined.sv \
 	src/control_unit.sv \
