@@ -5,7 +5,9 @@
 
 module InstructionMemory (
     input  logic [31:0] address,      // Address input to fetch the instruction
-    output logic [31:0] instruction   // Output instruction fetched from memory
+    output logic [31:0] instruction,  // Output instruction fetched from memory
+    output logic valid,               // Indicates instruction output is valid
+    input  logic stall_in             // Allows stalling the pipeline if needed
 );
 
     // Declare an array to simulate memory, with 256 words (1KB if each word is 4 bytes)
@@ -30,5 +32,15 @@ module InstructionMemory (
     // Fetch the instruction based on the address input
     // Assuming word-aligned addresses, so we ignore the two least significant bits
     assign instruction = mem[address[31:2]];
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            valid <= 1'b0;
+        end else if (!stall_in) begin
+            valid <= 1'b1;
+        end else begin
+            valid <= 1'b0;
+        end
+    end
 
 endmodule

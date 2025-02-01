@@ -5,7 +5,9 @@ module SIMD_ALU_Extended #(
     parameter DATA_WIDTH = 32,
     parameter OP_WIDTH = 5,
     parameter NUM_OPS = 32,
-    parameter SIMD_WIDTH = 4 // Number of parallel ALUs
+    parameter SIMD_WIDTH = 4, // Number of parallel ALUs
+    parameter ERROR_CHECK = 1, // Enable additional checks
+    parameter LOCAL_DATA_WIDTH = 64 // Overriding default
 ) (
     input  logic                   clk,          // Clock signal
     input  logic [SIMD_WIDTH*DATA_WIDTH-1:0] operand_a, // SIMD First operands
@@ -18,7 +20,8 @@ module SIMD_ALU_Extended #(
     output logic [SIMD_WIDTH-1:0]             carry_out, // SIMD Carry-out flags
     output logic [SIMD_WIDTH-1:0]             negative,  // SIMD Negative flags
     output logic [SIMD_WIDTH*DATA_WIDTH-1:0]  fp_result, // SIMD Floating-Point results
-    output logic [SIMD_WIDTH-1:0]             fp_overflow // SIMD Floating-Point overflow flags
+    output logic [SIMD_WIDTH-1:0]             fp_overflow, // SIMD Floating-Point overflow flags
+    output logic                              error_flag // Error flag
 );
     genvar i;
     generate
@@ -42,4 +45,15 @@ module SIMD_ALU_Extended #(
             );
         end
     endgenerate
+
+    always_ff @(posedge clk) begin
+        if (ERROR_CHECK) begin
+            // Simple check for invalid operation codes
+            if (/* condition for invalid op */) begin
+                error_flag <= 1'b1;
+            end else begin
+                error_flag <= 1'b0;
+            end
+        end
+    end
 endmodule

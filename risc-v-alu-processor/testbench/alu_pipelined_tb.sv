@@ -98,6 +98,12 @@ module ALU_Pipelined_tb;
         '{32'd0, 32'd0, 5'b01010, 32'd1, 1'b0, "SGE (0 >= 0) = 1"}
     };
 
+    // Coverage for pipeline stages
+    covergroup alu_pipe_cg @(posedge clk);
+        coverpoint uut.stage2_carry_out;
+        coverpoint uut.stage2_overflow;
+    endgroup
+
     // Main testing procedure
     initial begin
         // Start with all inputs set to zero
@@ -107,6 +113,15 @@ module ALU_Pipelined_tb;
 
         // Wait for a short period to stabilize
         #10;
+
+        alu_pipe_cg pipe_cov = new();
+
+        // Extended multi-cycle tests
+        operand_a = 32'hFFFF0000;
+        operand_b = 32'h0000FFFF;
+        alu_op = 5'b00000;
+        // Wait a few cycles to let pipeline advance
+        #20;
 
         // Loop through each test case and apply the inputs to the ALU
         for (i = 0; i < test_cases.size(); i++) begin

@@ -1,6 +1,6 @@
 // alu_pipelined.sv
 // This module represents a pipelined version of the ALU to improve performance by dividing operations into stages
-// It consists of two pipeline stages: Decode & Partial Compute, and Finalize Result & Set Flags
+// It consists of three pipeline stages: Decode & Partial Compute, Finalize Result, and Carry/Overflow Management
 // started on 10/09/2024 and completed 10/15/2024
 
 
@@ -47,20 +47,37 @@ module ALU_Pipelined (
         end
     end
 
-    // ----- Pipeline Stage 2: Finalize Result and Set Flags -----
+    // ----- Pipeline Stage 2: Finalize Result -----
     // These registers hold the final output after processing
+    logic [31:0] stage2_result; // Intermediate result from Stage 2
+
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            // On reset, clear the final result register
-            result <= 32'd0;
+            // On reset, clear the intermediate pipeline registers
+            stage2_result <= 32'd0;
         end else begin
-            // Pass the intermediate result to the final output
-            result <= stage1_result;
+            // Pass the intermediate result to the next stage
+            stage2_result <= stage1_result;
+        end
+    end
+
+    // ----- Pipeline Stage 3: Finalize carry/overflow signals -----
+    logic stage2_carry_out, stage2_overflow;
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            stage2_carry_out <= 1'b0;
+            stage2_overflow  <= 1'b0;
+        end else begin
+            stage2_carry_out <= /* carry_out from Stage 2 */;
+            stage2_overflow  <= /* overflow from Stage 2 */;
         end
     end
 
     // ----- Zero Flag Assignment -----
     // Determine if the final result is zero
-    assign zero = (result == 32'd0) ? 1'b1 : 1'b0;
+    assign zero = (stage2_result == 32'd0) ? 1'b1 : 1'b0;
+
+    // Final result assignment
+    assign result = stage2_result;
 
 endmodule

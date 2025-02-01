@@ -99,8 +99,19 @@ module ALU_Extended_tb;
         }
     endgroup
 
+    // Coverage bins for saturating arithmetic
+    covergroup sat_cg @(posedge clk);
+        coverpoint uut.saturate {
+            bins satOn = {1'b1};
+            bins satOff = {1'b0};
+        }
+    endgroup
+
     // Random test generation
     initial begin
+        alu_ops_cg alu_cov = new();
+        sat_cg s_cov = new();
+
         // Initialize Inputs
         en = 0;
         operand_a = 0;
@@ -261,6 +272,14 @@ module ALU_Extended_tb;
             @(posedge clk);
         end
 
+        // Additional random tests to stress saturate logic
+        repeat(50) begin
+            operand_a = $urandom_range(0, 32'hFFFFFFFF);
+            operand_b = $urandom_range(0, 32'hFFFFFFFF);
+            alu_op    = $urandom_range(0, 31);
+            @(posedge clk);
+        end
+
         // End Simulation
         #20;
         $display("All tests completed.");
@@ -273,6 +292,11 @@ module ALU_Extended_tb;
         if (uut.result !== ref_result) begin
             $error("Mismatch between DUT result and reference result");
         end
+    end
+
+    // Simple FP scoreboard
+    always_ff @(posedge clk) begin
+        // Compare fp_result with a reference model if needed
     end
 
 endmodule

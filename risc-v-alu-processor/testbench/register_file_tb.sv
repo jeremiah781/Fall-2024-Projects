@@ -39,8 +39,17 @@ module RegisterFile_tb;
         $dumpvars(0, RegisterFile_tb);
     end
 
+    // Functional coverage for read/write operations
+    covergroup regfile_cg @(posedge clk);
+        coverpoint write_reg { bins writeRegBins[] = { [0:31] }; }
+        coverpoint read_reg1 { bins readReg1Bins[] = { [0:31] }; }
+        coverpoint read_reg2 { bins readReg2Bins[] = { [0:31] }; }
+    endgroup
+
     // Test Procedure
     initial begin
+        regfile_cg reg_cov = new();
+
         // Initialize Inputs
         reset = 1;
         read_reg1 = 5'd0;
@@ -97,6 +106,18 @@ module RegisterFile_tb;
         #10;
         read_reg1 = 5'd0;
         read_reg2 = 5'd0;
+
+        // Random test for multiple reads/writes
+        repeat (10) begin
+            write_reg = $urandom_range(0, 31);
+            write_data = $urandom;
+            reg_write = 1;
+            @(posedge clk);
+            reg_write = 0;
+            read_reg1 = $urandom_range(0, 31);
+            read_reg2 = $urandom_range(0, 31);
+            @(posedge clk);
+        end
 
         // End Simulation
         #10;

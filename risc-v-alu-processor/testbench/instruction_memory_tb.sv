@@ -48,6 +48,13 @@ module InstructionMemory_tb;
         #10;
         $display("Address: %0d, Instruction: %b", address, instruction);
 
+        // Random address tests
+        repeat (5) begin
+            address = $urandom_range(0, 32'h10);
+            #10;
+            $display("Random Address: %0d, Instruction: %b", address, instruction);
+        end
+
         // End Simulation
         #10;
         $display("All Instruction Memory tests completed.");

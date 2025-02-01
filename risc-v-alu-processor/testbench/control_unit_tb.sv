@@ -11,12 +11,20 @@ module ControlUnit_tb;
     logic [6:0] opcode;
     logic reg_write;
     logic [4:0] alu_op;
+    logic mem_read;
+    logic mem_write;
+    logic branch;
+    logic jump;
 
     // Instantiate the Control Unit
     ControlUnit uut (
         .opcode(opcode),
         .reg_write(reg_write),
-        .alu_op(alu_op)
+        .alu_op(alu_op),
+        .mem_read(mem_read),
+        .mem_write(mem_write),
+        .branch(branch),
+        .jump(jump)
     );
 
     // VCD Dumping for GTKWave
@@ -25,8 +33,17 @@ module ControlUnit_tb;
         $dumpvars(0, ControlUnit_tb);
     end
 
-    // Test Procedure
+    covergroup ctrl_cg @(posedge opcode);
+        coverpoint opcode;
+        coverpoint reg_write;
+        coverpoint mem_read;
+        coverpoint mem_write;
+        coverpoint branch;
+        coverpoint jump;
+    endgroup
+
     initial begin
+        ctrl_cg cu_cov = new();
         // Initialize Inputs
         opcode = 7'd0;
 
