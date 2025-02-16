@@ -1,0 +1,9 @@
+
+// ...existing code...
+1  1  1  0 | 0  1  1  1 | 0  | 0  | 1
+...
+Testbench for Four-Bit Comparator.v:48: $stop called at 256000 (1ps)
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 256000 ticks.
+>

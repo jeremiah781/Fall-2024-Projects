@@ -1,12 +1,18 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint>
-#include <filesystem> // Included for file size operations
+
+// Conditionally include the filesystem header based on C++ version support
+#if __cplusplus < 201703L
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #include <filesystem>
+    namespace fs = std::filesystem;
+#endif
+
 #include <thread>     // Added to support future multithreading enhancements
 #include <vector>     // Added for potential future use with multithreaded operations
-
-// Alias for the filesystem namespace for convenience
-namespace fs = std::filesystem;
 
 // Function to compress the input file and write the compressed data to the output file
 // Notes: This uses run-length encoding (RLE) to compress sequences of repeated bytes
@@ -104,7 +110,9 @@ void reportCompressionRatio(const std::string& inputFilename, const std::string&
         // Print the compression statistics
         std::cout << "Original size: " << inputSize << " bytes\n";
         std::cout << "Compressed size: " << outputSize << " bytes\n";
-        std::cout << "Compression ratio: " << static_cast<double>(outputSize) / inputSize * 100 << "%\n";
+        std::cout << "Compression ratio: " 
+                  << static_cast<double>(outputSize) / inputSize * 100 
+                  << "%\n";
     } catch (const fs::filesystem_error& e) {
         std::cerr << "Error analyzing file sizes: " << e.what() << "\n";
     }
