@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint>
+#include <string>
 
 void decompress(const std::string& inputFilename, const std::string& outputFilename) {
     // Open the input file in binary read mode
@@ -21,10 +22,10 @@ void decompress(const std::string& inputFilename, const std::string& outputFilen
     uint8_t byte;
 
     // Read count and byte pairs from the input file
-    while (infile.read(reinterpret_cast<char*>(&count), 2) && infile.read(reinterpret_cast<char*>(&byte), 1)) {
+    while (infile.read(reinterpret_cast<char*>(&count), sizeof(count)) && infile.read(reinterpret_cast<char*>(&byte), sizeof(byte))) {
         for (uint16_t i = 0; i < count; ++i) {
             // Write the byte 'count' times to the output file
-            outfile.write(reinterpret_cast<char*>(&byte), 1);
+            outfile.write(reinterpret_cast<char*>(&byte), sizeof(byte));
             if (!outfile) {
                 std::cerr << "Error writing to output file.\n";
                 return;
