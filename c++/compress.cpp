@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint>
+#include <string>
 
 // Conditionally include the filesystem header based on C++ version support
 #if __cplusplus < 201703L
@@ -51,8 +52,8 @@ void compress(const std::string& inputFilename, const std::string& outputFilenam
             count++;
         } else {
             // If the sequence ends, write the count and byte to the output file
-            outfile.write(reinterpret_cast<char*>(&count), 2); // Write the 2-byte count
-            outfile.write(reinterpret_cast<char*>(&previousByte), 1); // Write the repeated byte
+            outfile.write(reinterpret_cast<char*>(&count), sizeof(count)); // Write the count
+            outfile.write(reinterpret_cast<char*>(&previousByte), sizeof(previousByte)); // Write the repeated byte
             if (!outfile) {
                 std::cerr << "An error occurred while writing compressed data to the output file\n";
                 return;
@@ -64,8 +65,8 @@ void compress(const std::string& inputFilename, const std::string& outputFilenam
     }
 
     // Write the final byte sequence to the output file after the loop ends
-    outfile.write(reinterpret_cast<char*>(&count), 2);
-    outfile.write(reinterpret_cast<char*>(&previousByte), 1);
+    outfile.write(reinterpret_cast<char*>(&count), sizeof(count));
+    outfile.write(reinterpret_cast<char*>(&previousByte), sizeof(previousByte));
 }
 
 // Function to decompress a file compressed with the run-length encoding algorithm
@@ -88,10 +89,10 @@ void decompress(const std::string& inputFilename, const std::string& outputFilen
     uint8_t byte;   // Variable to store the byte to be repeated
 
     // Loop through the input file, reading count and byte pairs
-    while (infile.read(reinterpret_cast<char*>(&count), 2) && infile.read(reinterpret_cast<char*>(&byte), 1)) {
+    while (infile.read(reinterpret_cast<char*>(&count), sizeof(count)) && infile.read(reinterpret_cast<char*>(&byte), sizeof(byte))) {
         // Write the byte to the output file 'count' times
         for (uint16_t i = 0; i < count; ++i) {
-            outfile.write(reinterpret_cast<char*>(&byte), 1);
+            outfile.write(reinterpret_cast<char*>(&byte), sizeof(byte));
             if (!outfile) {
                 std::cerr << "An error occurred while writing decompressed data to the output file\n";
                 return;
